@@ -167,8 +167,15 @@ class ProjectedDiscriminator(nn.Module):
         self.projectors = nn.ModuleList([nn.LazyConv2d(64, 1, 1, 0, bias=False) for _ in range(8)])
         for param in self.projectors.parameters():
             param.requires_grad = False
-        self.discriminators = nn.ModuleList([nn.LazyConv2d(1, 1, 1, 0) for _ in range(8)])
-        self.last_discriminator = nn.LazyConv2d(1, 1, 1, 0)
+        self.discriminators = nn.ModuleList([
+            nn.Sequential(
+                nn.LazyConv2d(64, 1, 1, 0),
+                nn.LeakyReLU(0.1),
+                nn.LazyConv2d(1, 1, 1, 0)) for _ in range(8)])
+        self.last_discriminator = nn.Sequential(
+                nn.LazyConv2d(64, 1, 1, 0),
+                nn.LeakyReLU(0.1),
+                nn.LazyConv2d(1, 1, 1, 0))
 
     def forward(self, x):
         projected = []
