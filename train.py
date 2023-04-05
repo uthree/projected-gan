@@ -3,6 +3,7 @@ import os
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import torch.optim as optim
 import torchvision
 import torchvision.transforms as T
@@ -57,7 +58,7 @@ for epoch in range(args.num_epoch):
         with torch.cuda.amp.autocast(enabled=args.fp16):
             fake, fake_grayscale = G(z)
             logit = D(fake, fake_grayscale)
-            g_loss = ((logit - 1) ** 2).mean()
+            g_loss = (F.relu(0.5 - logit)).mean()
         scaler.scale(g_loss).backward()
         scaler.step(OptG)
         
@@ -69,7 +70,7 @@ for epoch in range(args.num_epoch):
         with torch.cuda.amp.autocast(enabled=args.fp16):
             logit_real = D(real, real_grayscale)
             logit_fake = D(fake, fake_grayscale)
-            d_loss = ((logit_real - 1) ** 2).mean() + ((logit_fake + 1) ** 2).mean()
+            d_loss = (F.relu(0.5 - logit_real)).mean() + (F.relu(0.5 + logit_fake)).mean()
         scaler.scale(d_loss).backward()
         scaler.step(OptD)
         bar.set_description(desc=f"G: {g_loss.item():.4f}, D: {d_loss.item():.4f}")
