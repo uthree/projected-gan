@@ -133,3 +133,5 @@ dmypy.json
 *.jpg
 *.png
 *.data
+*.swp
+*.swo
