@@ -92,7 +92,7 @@ class ChannelNorm(nn.Module):
 class Generator(nn.Module):
     def __init__(self,
                  latent_dim=256,
-                 sle_map=[(0, 4), (1, 6)],
+                 sle_map=[(0, 3), (1, 5), (2, 7)],
                  num_blocks=9,
                  num_layers_per_block=1,
                  upsample_layers = [0, 1, 2, 3, 5, 7],
@@ -198,3 +198,13 @@ class LowResolutionDiscriminator(nn.Module):
 
     def forward(self, x):
         return self.seq(x).mean(dim=(2, 3))
+
+
+class Discriminator(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.proj_disc = ProjectedDiscriminator()
+        self.grayscale_disc = LowResolutionDiscriminator()
+
+    def forward(self, x, gs):
+        return self.proj_disc(x) + self.grayscale_disc(gs)
