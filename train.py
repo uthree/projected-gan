@@ -76,6 +76,6 @@ for epoch in range(args.num_epoch):
         if batch % 100 == 0:
             torch.save(G.state_dict(), './generator.pt')
             torch.save(D.state_dict(), './discriminator.pt')
-            torchvision.io.write_jpeg(((fake[0] * 127.5) + 127.5).to(torch.uint8), 'preview.jpg')
+            torchvision.io.write_jpeg(((fake[0].cpu() * 127.5) + 127.5).to(torch.uint8), 'preview.jpg')
 
         scaler.update()
