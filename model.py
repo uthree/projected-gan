@@ -164,10 +164,11 @@ class ProjectedDiscriminator(nn.Module):
                 weights=torchvision.models.EfficientNet_B0_Weights.DEFAULT)
         for param in self.efficientnet.parameters():
             param.requires_grad = False
-        self.projectors = nn.ModuleList([nn.LazyConv2d(64, 1, 1, 0) for _ in range(8)])
+        self.projectors = nn.ModuleList([nn.LazyConv2d(64, 1, 1, 0, bias=False) for _ in range(8)])
         for param in self.projectors.parameters():
             param.requires_grad = False
-        self.discriminators = nn.ModuleList([nn.LazyConv2d(1, 3, 1, 1) for _ in range(8)])
+        self.discriminators = nn.ModuleList([nn.LazyConv2d(1, 1, 1, 0) for _ in range(8)])
+        self.last_discriminator = nn.LazyConv2d(1, 1, 1, 0)
 
     def forward(self, x):
         projected = []
@@ -177,6 +178,9 @@ class ProjectedDiscriminator(nn.Module):
             projected.append(self.projectors[i](x))
         for i, p in enumerate(projected):
             logits = logits + self.discriminators[i](p).mean(dim=(2, 3))
+        mb_std = x.std(dim=0, keepdim=True).mean(dim=(1, 2, 3), keepdim=True)
+        x = x + mb_std
+        logits = logits + self.last_discriminator(x).mean()
         return logits
 
 

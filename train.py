@@ -53,6 +53,7 @@ for epoch in range(args.num_epoch):
         
         # Train G.
         z = torch.randn(N, 256, 1, 1).to(device)
+        OptG.zero_grad()
         with torch.cuda.amp.autocast(enabled=args.fp16):
             fake, fake_grayscale = G(z)
             logit = D(fake, fake_grayscale)
@@ -63,7 +64,8 @@ for epoch in range(args.num_epoch):
         # Train D.
         fake = fake.detach()
         fake_grayscale = fake_grayscale.detach()
-
+        
+        OptD.zero_grad()
         with torch.cuda.amp.autocast(enabled=args.fp16):
             logit_real = D(real, real_grayscale)
             logit_fake = D(fake, fake_grayscale)
@@ -77,5 +79,7 @@ for epoch in range(args.num_epoch):
             torch.save(G.state_dict(), './generator.pt')
             torch.save(D.state_dict(), './discriminator.pt')
             torchvision.io.write_jpeg(((fake[0].cpu() * 127.5) + 127.5).to(torch.uint8), 'preview.jpg')
+            torchvision.io.write_jpeg(((fake_grayscale[0].cpu() * 127.5) + 127.5).to(torch.uint8), 'preview_gs.jpg')
+
 
         scaler.update()
