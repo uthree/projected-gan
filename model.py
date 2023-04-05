@@ -170,7 +170,7 @@ class ProjectedDiscriminator(nn.Module):
             param.requires_grad = False
         self.discriminators = nn.ModuleList([
             nn.Sequential(
-                nn.LazyConv2d(64, 1, 1, 0),
+                nn.LazyConv2d(64, 4, 2, 0),
                 nn.LeakyReLU(0.1),
                 nn.LazyConv2d(1, 1, 1, 0)) for _ in range(8)])
         self.last_discriminator = nn.Sequential(
@@ -197,15 +197,15 @@ class LowResolutionDiscriminator(nn.Module):
     def __init__(self):
         super().__init__()
         self.seq = nn.Sequential(
-                nn.Conv2d(1, 64, 4, 2, 2),
+                nn.Conv2d(1, 64, 4, 2, 0),
                 nn.LeakyReLU(0.1),
-                nn.Conv2d(64, 64, 4, 2, 2),
+                nn.Conv2d(64, 64, 4, 2, 0),
                 nn.LeakyReLU(0.1),
-                nn.Conv2d(64, 64, 4, 2, 2),
+                nn.Conv2d(64, 64, 4, 2, 0),
                 nn.LeakyReLU(0.1),
-                nn.Conv2d(64, 64, 4, 2, 2),
+                nn.Conv2d(64, 64, 4, 2, 0),
                 nn.LeakyReLU(0.1),
-                nn.Conv2d(64, 1, 4, 2, 2),
+                nn.Conv2d(64, 1, 4, 2, 0),
                 )
 
     def forward(self, x):

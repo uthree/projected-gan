@@ -15,8 +15,8 @@ from model import Generator, Discriminator
 parser = argparse.ArgumentParser()
 parser.add_argument('dataset_path')
 parser.add_argument('-m', '--max-data', default=-1, type=int)
-parser.add_argument('-b', '--batch-size', default=4, type=int)
-parser.add_argument('-e', '--num-epoch', default=100, type=int)
+parser.add_argument('-b', '--batch-size', default=8, type=int)
+parser.add_argument('-e', '--num-epoch', default=1000, type=int)
 parser.add_argument('-d', '--device', default='cpu')
 parser.add_argument('-fp16', default=False, type=bool)
 parser.add_argument('-lr', '--learning-rate', default=1e-4, type=float)
@@ -35,8 +35,8 @@ if os.path.exists('./discriminator.pt'):
 ds = ImageDataset([args.dataset_path], max_len=args.max_data, size=512)
 dl = torch.utils.data.DataLoader(ds, batch_size=args.batch_size, shuffle=True)
 
-OptG = optim.Adam(G.parameters(), lr=args.learning_rate, betas=(0.5, 0.999))
-OptD = optim.Adam(D.parameters(), lr=args.learning_rate, betas=(0.5, 0.999))
+OptG = optim.Adam(G.parameters(), lr=args.learning_rate, betas=(0, 0.99))
+OptD = optim.Adam(D.parameters(), lr=args.learning_rate, betas=(0, 0.99))
 
 scaler = torch.cuda.amp.GradScaler(enabled=args.fp16)
 
