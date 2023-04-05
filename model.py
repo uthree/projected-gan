@@ -96,7 +96,7 @@ class Generator(nn.Module):
                  num_blocks=9,
                  num_layers_per_block=1,
                  upsample_layers = [0, 1, 2, 3, 5, 7],
-                 channels = [64, 64, 64, 32, 32, 16, 3, 3],
+                 channels = [64, 64, 64, 64, 64, 64, 3, 3],
                  grayscale_output_layer = 4,
                  output_channels = 3,
                  norm_class = nn.BatchNorm2d
