@@ -68,6 +68,7 @@ class ConvBlock(nn.Module):
             self.seq = nn.Sequential()
             for _ in range(num_layers):
                 self.seq.append(nn.Conv2d(input_channels, input_channels, 3, 1, 1))
+                self.seq.append(Blur())
                 self.seq.append(nn.LeakyReLU(0.1))
             self.seq.append(nn.Conv2d(input_channels, output_channels, 3, 1, 1,))
         if upsample:
