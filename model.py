@@ -158,6 +158,19 @@ class Generator(nn.Module):
         return x, grayscale
 
 
+class ProjectedSubdiscriminator(nn.Module):
+    def __init__(self, internal_channels, num_downsamples):
+        super().__init__()
+        self.downsamples = nn.Sequential(*[nn.LazyConv2d(internal_channels, 4, 2, 0) for _ in range(num_downsamples)])
+        self.output_layer = nn.LazyConv2d(1, 3, 1, 1)
+
+    def forward(self, x):
+        x = self.downsamples(x)
+        x = torch.cat([x, x.std(dim=0, keepdim=True).repeat(x.shape[0], 1, 1, 1)], dim=1)
+        x = self.output_layer(x)
+        return x
+
+
 class ProjectedDiscriminator(nn.Module):
     def __init__(self):
         super().__init__()
@@ -165,30 +178,38 @@ class ProjectedDiscriminator(nn.Module):
                 weights=torchvision.models.EfficientNet_B0_Weights.DEFAULT)
         for param in self.efficientnet.parameters():
             param.requires_grad = False
-        self.projectors = nn.ModuleList([nn.LazyConv2d(64, 1, 1, 0, bias=False) for _ in range(8)])
+        
+        self.projectors = nn.ModuleList([nn.LazyConv2d(64 * (2 ** i), 1, 1, 0) for i in range(4)])
         for param in self.projectors.parameters():
+            param.resuires_grad = False
+
+        self.subdiscriminators = nn.ModuleList([
+                ProjectedSubdiscriminator(64, 3),
+                ProjectedSubdiscriminator(128, 2),
+                ProjectedSubdiscriminator(256, 1),
+                ProjectedSubdiscriminator(256, 0),
+            ])
+
+        self.csms = nn.ModuleList([
+                nn.Conv2d(512, 256, 1, 1, 0),
+                nn.Conv2d(256, 128, 1, 1, 0),
+                nn.Conv2d(128, 64, 1, 1, 0)
+            ])
+        for param in self.csms.parameters():
             param.requires_grad = False
-        self.discriminators = nn.ModuleList([
-            nn.Sequential(
-                nn.LazyConv2d(64, 4, 2, 0),
-                nn.LeakyReLU(0.1),
-                nn.LazyConv2d(1, 1, 1, 0)) for _ in range(8)])
-        self.last_discriminator = nn.Sequential(
-                nn.LazyConv2d(64, 1, 1, 0),
-                nn.LeakyReLU(0.1),
-                nn.LazyConv2d(1, 1, 1, 0))
 
     def forward(self, x):
         projected = []
-        logits = 0
         for i, layer in enumerate(self.efficientnet.features[:-1]):
             x = layer(x)
-            projected.append(self.projectors[i](x))
-        for i, p in enumerate(projected):
-            logits = logits + self.discriminators[i](p).mean(dim=(2, 3))
-        mb_std = x.std(dim=0, keepdim=True).mean(dim=(1, 2, 3), keepdim=True)
-        x = x + mb_std
-        logits = logits + self.last_discriminator(x).mean()
+            if i in [2, 3, 4, 6]:
+                projected.append(self.projectors[[2, 3, 4, 6].index(i)](x))
+        projected[2] += F.interpolate(self.csms[0](projected[3]), scale_factor=2)
+        projected[1] += F.interpolate(self.csms[1](projected[2]), scale_factor=2)
+        projected[0] += F.interpolate(self.csms[2](projected[1]), scale_factor=2)
+        logits = 0 
+        for i, (sd, p) in enumerate(zip(self.subdiscriminators, projected)):
+            logits += (sd(p)).mean(dim=(2, 3))
         return logits
 
 
@@ -199,16 +220,12 @@ class LowResolutionDiscriminator(nn.Module):
         self.seq = nn.Sequential(
                 nn.Conv2d(1, 64, 4, 2, 0),
                 nn.LeakyReLU(0.1),
-                ConvBlock(64, 64),
                 nn.Conv2d(64, 64, 4, 2, 0),
                 nn.LeakyReLU(0.1),
-                ConvBlock(64, 64),
                 nn.Conv2d(64, 64, 4, 2, 0),
                 nn.LeakyReLU(0.1),
-                ConvBlock(64, 64),
                 nn.Conv2d(64, 64, 4, 2, 0),
                 nn.LeakyReLU(0.1),
-                ConvBlock(64, 1),
                 )
 
     def forward(self, x):
