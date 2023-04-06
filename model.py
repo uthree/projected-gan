@@ -100,7 +100,7 @@ class Generator(nn.Module):
                  channels = [64, 64, 64, 64, 64, 64, 3, 3],
                  grayscale_output_layer = 4,
                  output_channels = 3,
-                 norm_class = nn.BatchNorm2d
+                 norm_class = ChannelNorm
                  ):
         super().__init__()
         channels = channels.copy()
@@ -199,13 +199,16 @@ class LowResolutionDiscriminator(nn.Module):
         self.seq = nn.Sequential(
                 nn.Conv2d(1, 64, 4, 2, 0),
                 nn.LeakyReLU(0.1),
+                ConvBlock(64, 64),
                 nn.Conv2d(64, 64, 4, 2, 0),
                 nn.LeakyReLU(0.1),
+                ConvBlock(64, 64),
                 nn.Conv2d(64, 64, 4, 2, 0),
                 nn.LeakyReLU(0.1),
+                ConvBlock(64, 64),
                 nn.Conv2d(64, 64, 4, 2, 0),
                 nn.LeakyReLU(0.1),
-                nn.Conv2d(64, 1, 4, 2, 0),
+                ConvBlock(64, 1),
                 )
 
     def forward(self, x):
