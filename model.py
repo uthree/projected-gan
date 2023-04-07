@@ -161,7 +161,9 @@ class Generator(nn.Module):
 class ProjectedSubdiscriminator(nn.Module):
     def __init__(self, internal_channels, num_downsamples):
         super().__init__()
-        self.downsamples = nn.Sequential(*[nn.LazyConv2d(internal_channels, 4, 2, 0) for _ in range(num_downsamples)])
+        self.downsamples = nn.Sequential(*[
+            nn.Sequential(nn.LazyConv2d(internal_channels, 4, 2, 0), nn.LeakyReLU(0.1))
+            for _ in range(num_downsamples)])
         self.output_layer = nn.LazyConv2d(1, 3, 1, 1)
 
     def forward(self, x):
