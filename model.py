@@ -62,13 +62,11 @@ class ConvBlock(nn.Module):
         if num_layers == 1:
             self.seq = nn.Sequential(
                     nn.Conv2d(input_channels, output_channels, 3, 1, 1),
-                    Blur(),
                     nn.LeakyReLU(0.1))
         else:
             self.seq = nn.Sequential()
             for _ in range(num_layers):
                 self.seq.append(nn.Conv2d(input_channels, input_channels, 3, 1, 1))
-                self.seq.append(Blur())
                 self.seq.append(nn.LeakyReLU(0.1))
             self.seq.append(nn.Conv2d(input_channels, output_channels, 3, 1, 1,))
         if upsample:
@@ -241,4 +239,4 @@ class Discriminator(nn.Module):
         self.grayscale_disc = LowResolutionDiscriminator()
 
     def forward(self, x, gs):
-        return self.proj_disc(x) + self.grayscale_disc(gs)
+        return  self.grayscale_disc(gs) + self.proj_disc(x)

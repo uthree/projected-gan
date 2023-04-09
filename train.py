@@ -35,8 +35,8 @@ if os.path.exists('./discriminator.pt'):
 ds = ImageDataset([args.dataset_path], max_len=args.max_data, size=512)
 dl = torch.utils.data.DataLoader(ds, batch_size=args.batch_size, shuffle=True)
 
-OptG = optim.Adam(G.parameters(), lr=args.learning_rate, betas=(0, 0.99))
-OptD = optim.Adam(D.parameters(), lr=args.learning_rate, betas=(0, 0.99))
+OptG = optim.Adam(G.parameters(), lr=args.learning_rate, betas=(0.5, 0.999))
+OptD = optim.Adam(D.parameters(), lr=args.learning_rate, betas=(0.5, 0.999))
 
 scaler = torch.cuda.amp.GradScaler(enabled=args.fp16)
 
@@ -58,7 +58,7 @@ for epoch in range(args.num_epoch):
         with torch.cuda.amp.autocast(enabled=args.fp16):
             fake, fake_grayscale = G(z)
             logit = D(fake, fake_grayscale)
-            g_loss = (F.relu(0.5 - logit)).mean()
+            g_loss = (0.5 - logit).mean()
         scaler.scale(g_loss).backward()
         scaler.step(OptG)
         
