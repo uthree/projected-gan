@@ -58,7 +58,7 @@ for epoch in range(args.num_epoch):
         with torch.cuda.amp.autocast(enabled=args.fp16):
             fake, fake_grayscale = G(z)
             logit = D(fake, fake_grayscale)
-            g_loss = (0.5 - logit).mean()
+            g_loss = (F.relu(0.5 - logit)).mean()
         scaler.scale(g_loss).backward()
         scaler.step(OptG)
         
@@ -73,6 +73,7 @@ for epoch in range(args.num_epoch):
             d_loss = (F.relu(0.5 - logit_real)).mean() + (F.relu(0.5 + logit_fake)).mean()
         scaler.scale(d_loss).backward()
         scaler.step(OptD)
+        tqdm.write(f"G: {g_loss.item():.4f}, D: {d_loss.item():.4f}")
         bar.set_description(desc=f"G: {g_loss.item():.4f}, D: {d_loss.item():.4f}")
         bar.update(N)
 

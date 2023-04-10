@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torchvision
+from torch.nn.utils import spectral_norm
 
 
 class Blur(nn.Module):
@@ -29,9 +30,9 @@ class SkipLayerExcitation(nn.Module):
     def __init__(self, hr_channels, lr_channels):
         super().__init__()
         self.adapool = nn.AdaptiveAvgPool2d(4)
-        self.c1 = nn.Conv2d(lr_channels, lr_channels, 4, 1, 0)
+        self.c1 = spectral_norm(nn.Conv2d(lr_channels, lr_channels, 4, 1, 0, bias=False))
         self.leaky_relu = nn.LeakyReLU(0.1)
-        self.c2 = nn.Conv2d(lr_channels, hr_channels, 1, 1, 0)
+        self.c2 = spectral_norm(nn.Conv2d(lr_channels, hr_channels, 1, 1, 0, bias=False))
         self.sigmoid = nn.Sigmoid()
 
     def forward(self, hr, lr):
@@ -47,7 +48,7 @@ class SkipLayerExcitation(nn.Module):
 class Upsample(nn.Module):
     def __init__(self, input_channels, output_channels):
         super().__init__()
-        self.conv = nn.Conv2d(input_channels, output_channels * 4, 1, 1, 0)
+        self.conv = spectral_norm(nn.Conv2d(input_channels, output_channels * 4, 1, 1, 0))
         self.pixel_shuffle = nn.PixelShuffle(2)
 
     def forward(self, x):
@@ -61,12 +62,15 @@ class ConvBlock(nn.Module):
         super().__init__()
         if num_layers == 1:
             self.seq = nn.Sequential(
-                    nn.Conv2d(input_channels, output_channels, 3, 1, 1),
+                    spectral_norm(nn.Conv2d(input_channels, output_channels, 3, 1, 1)),
+                    Blur(),
                     nn.LeakyReLU(0.1))
         else:
             self.seq = nn.Sequential()
             for _ in range(num_layers):
-                self.seq.append(nn.Conv2d(input_channels, input_channels, 3, 1, 1))
+                self.seq.append(
+                        spectral_norm(nn.Conv2d(input_channels, input_channels, 3, 1, 1)))
+                Blur(),
                 self.seq.append(nn.LeakyReLU(0.1))
             self.seq.append(nn.Conv2d(input_channels, output_channels, 3, 1, 1,))
         if upsample:
@@ -105,12 +109,12 @@ class Generator(nn.Module):
         channels.insert(0, latent_dim // 4)
 
         self.first_layer = nn.Sequential(
-                nn.ConvTranspose2d(latent_dim, latent_dim, 4, 1, 0),
+                spectral_norm(nn.ConvTranspose2d(latent_dim, latent_dim, 4, 1, 0)),
                 norm_class(latent_dim),
                 nn.GLU(dim=1),
                 ConvBlock(latent_dim // 2, latent_dim // 2, num_layers=num_layers_per_block), 
                 nn.Upsample(scale_factor=(2, 2)),
-                nn.Conv2d(latent_dim // 2, latent_dim // 2, 3, 1, 1),
+                spectral_norm(nn.Conv2d(latent_dim // 2, latent_dim // 2, 3, 1, 1)),
                 norm_class(latent_dim // 2),
                 nn.GLU(dim=1)
                 )
@@ -131,12 +135,12 @@ class Generator(nn.Module):
         self.sle_map = sle_map
         self.grayscale_output_layer_id = grayscale_output_layer
         self.grayscale_output_layer = nn.Sequential(
-                nn.Conv2d(channels[self.grayscale_output_layer_id+1], 1, 3, 1, 1),
+                spectral_norm(nn.Conv2d(channels[self.grayscale_output_layer_id+1], 1, 3, 1, 1)),
                 nn.Tanh()
                 )
 
         self.last_layer = nn.Sequential(
-                nn.Conv2d(channels[-1], output_channels, 3, 1, 1),
+                spectral_norm(nn.Conv2d(channels[-1], output_channels, 3, 1, 1)),
                 nn.Tanh()
                 )
 
@@ -218,13 +222,13 @@ class LowResolutionDiscriminator(nn.Module):
     def __init__(self):
         super().__init__()
         self.seq = nn.Sequential(
-                nn.Conv2d(1, 64, 4, 2, 0),
+                spectral_norm(nn.Conv2d(1, 64, 4, 2, 0)),
                 nn.LeakyReLU(0.1),
-                nn.Conv2d(64, 64, 4, 2, 0),
+                spectral_norm(nn.Conv2d(64, 64, 4, 2, 0)),
                 nn.LeakyReLU(0.1),
-                nn.Conv2d(64, 64, 4, 2, 0),
+                spectral_norm(nn.Conv2d(64, 64, 4, 2, 0)),
                 nn.LeakyReLU(0.1),
-                nn.Conv2d(64, 64, 4, 2, 0),
+                spectral_norm(nn.Conv2d(64, 64, 4, 2, 0)),
                 nn.LeakyReLU(0.1),
                 )
 
