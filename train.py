@@ -57,8 +57,8 @@ for epoch in range(args.num_epoch):
         OptG.zero_grad()
         with torch.cuda.amp.autocast(enabled=args.fp16):
             fake, fake_grayscale = G(z)
-            logit = D(fake, fake_grayscale)
-            g_loss = (F.relu(0.5 - logit)).mean()
+            logit, logit_gs = D(fake, fake_grayscale)
+            g_loss = (F.relu(0.5 - logit)).mean() + (F.relu(0.5 - logit_gs)).mean()
         scaler.scale(g_loss).backward()
         scaler.step(OptG)
         
@@ -68,9 +68,12 @@ for epoch in range(args.num_epoch):
         
         OptD.zero_grad()
         with torch.cuda.amp.autocast(enabled=args.fp16):
-            logit_real = D(real, real_grayscale)
-            logit_fake = D(fake, fake_grayscale)
-            d_loss = (F.relu(0.5 - logit_real)).mean() + (F.relu(0.5 + logit_fake)).mean()
+            logit_real, logit_real_gs = D(real, real_grayscale)
+            logit_fake, logit_fake_gs = D(fake, fake_grayscale)
+            d_loss = (F.relu(0.5 - logit_real)).mean() +\
+                    (F.relu(0.5 + logit_fake)).mean() +\
+                    (F.relu(0.5 - logit_real_gs)).mean() +\
+                    (F.relu(0.5 + logit_fake_gs)).mean()
         scaler.scale(d_loss).backward()
         scaler.step(OptD)
         tqdm.write(f"G: {g_loss.item():.4f}, D: {d_loss.item():.4f}")

@@ -26,7 +26,10 @@ if not os.path.exists('./results'):
 
 for i in tqdm(range(args.num_images)):
     z = torch.randn(1, 256, 1, 1).to(device)
-    fake, _ = G(z)
+    fake, fake_gs = G(z)
     torchvision.io.write_jpeg(((fake[0].cpu() * 127.5) + 127.5).to(torch.uint8),
             os.path.join('./results/', f"{i}.jpg"))
+    torchvision.io.write_jpeg(((fake_gs[0].cpu() * 127.5) + 127.5).to(torch.uint8),
+            os.path.join('./results/', f"{i}_gs.jpg"))
+
     

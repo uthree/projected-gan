@@ -220,12 +220,16 @@ class LowResolutionDiscriminator(nn.Module):
     def __init__(self):
         super().__init__()
         self.seq = nn.Sequential(
-                spectral_norm(nn.Conv2d(1, 64, 4, 2, 0)),
-                nn.LeakyReLU(0.1),
+                ConvBlock(1, 64),
                 spectral_norm(nn.Conv2d(64, 64, 4, 2, 0)),
                 nn.LeakyReLU(0.1),
+                ConvBlock(64, 64),
                 spectral_norm(nn.Conv2d(64, 64, 4, 2, 0)),
                 nn.LeakyReLU(0.1),
+                ConvBlock(64, 64),
+                spectral_norm(nn.Conv2d(64, 64, 4, 2, 0)),
+                nn.LeakyReLU(0.1),
+                ConvBlock(64, 64),
                 spectral_norm(nn.Conv2d(64, 64, 4, 2, 0)),
                 nn.LeakyReLU(0.1),
                 )
@@ -241,4 +245,4 @@ class Discriminator(nn.Module):
         self.grayscale_disc = LowResolutionDiscriminator()
 
     def forward(self, x, gs):
-        return  self.grayscale_disc(gs) + self.proj_disc(x)
+        return self.grayscale_disc(gs), self.proj_disc(x)
