@@ -5,27 +5,6 @@ import torchvision
 from torch.nn.utils import spectral_norm
 
 
-class Blur(nn.Module):
-    def __init__(self):
-        super(Blur, self).__init__()
-        self.kernel = torch.tensor([[1, 2, 1],
-                                    [2, 4, 2],
-                                    [1, 2, 1]], dtype=torch.float32)
-        self.kernel = self.kernel / self.kernel.sum()
-        self.kernel = self.kernel[None, None, :, :]
-    def forward(self, x):
-        shape = x.shape
-        # padding
-        x = F.pad(x, (1, 1, 1, 1), mode='replicate')
-        # reshape
-        x = x.reshape(-1, 1, x.shape[2], x.shape[3])
-        # convolution
-        x = F.conv2d(x, self.kernel.to(x.device), stride=1, padding=0, groups=x.shape[1])
-        # reshape
-        x = x.reshape(shape)
-        return x
-
-
 class SkipLayerExcitation(nn.Module):
     def __init__(self, hr_channels, lr_channels):
         super().__init__()
@@ -48,7 +27,7 @@ class SkipLayerExcitation(nn.Module):
 class Upsample(nn.Module):
     def __init__(self, input_channels, output_channels):
         super().__init__()
-        self.conv = spectral_norm(nn.Conv2d(input_channels, output_channels * 4, 1, 1, 0))
+        self.conv = spectral_norm(nn.Conv2d(input_channels, output_channels * 4, 1, 1, 0, bias=False))
         self.pixel_shuffle = nn.PixelShuffle(2)
 
     def forward(self, x):
@@ -58,20 +37,17 @@ class Upsample(nn.Module):
 
 
 class ConvBlock(nn.Module):
-    def __init__(self, input_channels, output_channels, num_layers=1, upsample=False, blur=False):
+    def __init__(self, input_channels, output_channels, num_layers=1, upsample=False):
         super().__init__()
         if num_layers == 1:
             self.seq = nn.Sequential(
                     spectral_norm(nn.Conv2d(input_channels, output_channels, 3, 1, 1)),
-                    (Blur() if blur else nn.Identity()),
                     nn.LeakyReLU(0.1))
         else:
             self.seq = nn.Sequential()
             for _ in range(num_layers):
                 self.seq.append(
                         spectral_norm(nn.Conv2d(input_channels, input_channels, 3, 1, 1)))
-                if blur:
-                    self.seq.append(Blur())
                 self.seq.append(nn.LeakyReLU(0.1))
             self.seq.append(nn.Conv2d(input_channels, output_channels, 3, 1, 1,))
         if upsample:
@@ -96,7 +72,7 @@ class ChannelNorm(nn.Module):
 class Generator(nn.Module):
     def __init__(self,
                  latent_dim=256,
-                 sle_map=[(0, 3), (1, 5), (2, 7)],
+                 sle_map=[(0, 4), (1, 6), (2, 7)],
                  num_blocks=9,
                  num_layers_per_block=1,
                  upsample_layers = [0, 1, 2, 3, 5, 7],
@@ -129,7 +105,7 @@ class Generator(nn.Module):
             c = channels[i]
             upsample_flag = (i in upsample_layers)
             self.mid_layers.append(
-                    ConvBlock(c, c_next, num_layers=num_layers_per_block, upsample=upsample_flag, blur=True))
+                    ConvBlock(c, c_next, num_layers=num_layers_per_block, upsample=upsample_flag))
             for lr, hr in sle_map:
                 if lr == i:
                     self.sles.append(SkipLayerExcitation(channels[hr+1], channels[lr]))
@@ -137,7 +113,6 @@ class Generator(nn.Module):
         self.grayscale_output_layer_id = grayscale_output_layer
         self.grayscale_output_layer = nn.Sequential(
                 spectral_norm(nn.Conv2d(channels[self.grayscale_output_layer_id+1], 1, 3, 1, 1)),
-                nn.Tanh()
                 )
 
         self.last_layer = nn.Sequential(
