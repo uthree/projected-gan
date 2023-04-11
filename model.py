@@ -61,7 +61,8 @@ class ConvBlock(nn.Module):
                 self.seq.append(
                         spectral_norm(nn.Conv2d(input_channels, input_channels, 3, 1, 1)))
                 self.seq.append(nn.LeakyReLU(0.1))
-            self.seq.append(nn.Conv2d(input_channels, output_channels, 3, 1, 1,))
+            self.seq.append(
+                    spectral_norm(nn.Conv2d(input_channels, output_channels, 3, 1, 1,)))
         if upsample:
             self.seq.append(Upsample(output_channels, output_channels))
 
@@ -88,7 +89,7 @@ class Generator(nn.Module):
                  num_blocks=9,
                  num_layers_per_block=1,
                  upsample_layers = [0, 1, 2, 3, 5, 7],
-                 channels = [64, 64, 64, 64, 64, 64, 64, 3, 3, 3],
+                 channels = [1024, 512, 256, 128, 64, 64, 64, 32, 16, 8],
                  grayscale_output_layer = 4,
                  output_channels = 3,
                  norm_class = ChannelNorm
@@ -119,15 +120,16 @@ class Generator(nn.Module):
                     ConvBlock(c, c_next, num_layers=num_layers_per_block, upsample=upsample_flag))
             for lr, hr in sle_map:
                 if lr == i:
-                    self.sles.append(SkipLayerExcitation(channels[hr+1], channels[lr]))
+                    self.sles.append(SkipLayerExcitation(channels[hr+1], channels[lr+1]))
         self.sle_map = sle_map
         self.grayscale_output_layer_id = grayscale_output_layer
         self.grayscale_output_layer = nn.Sequential(
                 spectral_norm(nn.Conv2d(channels[self.grayscale_output_layer_id+1], 1, 3, 1, 1)),
+                nn.Tanh()
                 )
 
         self.last_layer = nn.Sequential(
-                spectral_norm(nn.Conv2d(channels[-1], output_channels, 3, 1, 1)),
+                spectral_norm(nn.Conv2d(channels[-1], output_channels, 1, 1, 0, bias=False)),
                 nn.Tanh()
                 )
 
@@ -186,9 +188,9 @@ class ProjectedDiscriminator(nn.Module):
             ])
 
         self.csms = nn.ModuleList([
-                nn.Conv2d(512, 256, 1, 1, 0),
-                nn.Conv2d(256, 128, 1, 1, 0),
-                nn.Conv2d(128, 64, 1, 1, 0)
+                nn.Conv2d(512, 256, 1, 1, 0, bias=False),
+                nn.Conv2d(256, 128, 1, 1, 0, bias=False),
+                nn.Conv2d(128, 64, 1, 1, 0, bias=False)
             ])
         for param in self.csms.parameters():
             param.requires_grad = False
