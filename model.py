@@ -5,6 +5,18 @@ import torchvision
 from torch.nn.utils import spectral_norm
 
 
+class GLU(nn.Module):
+    def __init__(self, input_channels, output_channels):
+        super().__init__()
+        self.conv = nn.Conv2d(input_channels, output_channels * 2, 1, 1, 0)
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, x):
+        x = self.conv(x)
+        x1, x2 = x.chunk(2, dim=1)
+        out = self.sigmoid(x1) * x2
+        return out
+
 class SkipLayerExcitation(nn.Module):
     def __init__(self, hr_channels, lr_channels):
         super().__init__()
@@ -72,28 +84,27 @@ class ChannelNorm(nn.Module):
 class Generator(nn.Module):
     def __init__(self,
                  latent_dim=256,
-                 sle_map=[(0, 4), (1, 6), (2, 7)],
+                 sle_map=[(0, 4), (1, 6), (2, 8)],
                  num_blocks=9,
                  num_layers_per_block=1,
                  upsample_layers = [0, 1, 2, 3, 5, 7],
-                 channels = [64, 64, 64, 64, 64, 64, 3, 3],
+                 channels = [64, 64, 64, 64, 64, 64, 64, 3, 3, 3],
                  grayscale_output_layer = 4,
                  output_channels = 3,
                  norm_class = ChannelNorm
                  ):
         super().__init__()
         channels = channels.copy()
-        channels.insert(0, latent_dim // 4)
 
         self.first_layer = nn.Sequential(
                 spectral_norm(nn.ConvTranspose2d(latent_dim, latent_dim, 4, 1, 0)),
                 norm_class(latent_dim),
-                nn.GLU(dim=1),
-                ConvBlock(latent_dim // 2, latent_dim // 2, num_layers=num_layers_per_block), 
+                GLU(latent_dim, latent_dim),
+                ConvBlock(latent_dim, latent_dim, num_layers=num_layers_per_block), 
                 nn.Upsample(scale_factor=(2, 2)),
-                spectral_norm(nn.Conv2d(latent_dim // 2, latent_dim // 2, 3, 1, 1)),
-                norm_class(latent_dim // 2),
-                nn.GLU(dim=1)
+                spectral_norm(nn.Conv2d(latent_dim, latent_dim, 3, 1, 1)),
+                norm_class(latent_dim),
+                GLU(latent_dim, channels[0]),
                 )
         self.mid_layers = nn.ModuleList([])
         self.sles = nn.ModuleList([])
