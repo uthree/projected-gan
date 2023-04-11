@@ -58,17 +58,20 @@ class Upsample(nn.Module):
 
 
 class ConvBlock(nn.Module):
-    def __init__(self, input_channels, output_channels, num_layers=1, upsample=False):
+    def __init__(self, input_channels, output_channels, num_layers=1, upsample=False, blur=False):
         super().__init__()
         if num_layers == 1:
             self.seq = nn.Sequential(
                     spectral_norm(nn.Conv2d(input_channels, output_channels, 3, 1, 1)),
+                    (Blur() if blur else nn.Identity()),
                     nn.LeakyReLU(0.1))
         else:
             self.seq = nn.Sequential()
             for _ in range(num_layers):
                 self.seq.append(
                         spectral_norm(nn.Conv2d(input_channels, input_channels, 3, 1, 1)))
+                if blur:
+                    self.seq.append(Blur())
                 self.seq.append(nn.LeakyReLU(0.1))
             self.seq.append(nn.Conv2d(input_channels, output_channels, 3, 1, 1,))
         if upsample:
@@ -126,7 +129,7 @@ class Generator(nn.Module):
             c = channels[i]
             upsample_flag = (i in upsample_layers)
             self.mid_layers.append(
-                    ConvBlock(c, c_next, num_layers=num_layers_per_block, upsample=upsample_flag))
+                    ConvBlock(c, c_next, num_layers=num_layers_per_block, upsample=upsample_flag, blur=True))
             for lr, hr in sle_map:
                 if lr == i:
                     self.sles.append(SkipLayerExcitation(channels[hr+1], channels[lr]))
@@ -164,7 +167,11 @@ class ProjectedSubdiscriminator(nn.Module):
         self.downsamples = nn.Sequential(*[
             nn.Sequential(nn.LazyConv2d(internal_channels, 4, 2, 0), nn.LeakyReLU(0.1))
             for _ in range(num_downsamples)])
-        self.output_layer = nn.LazyConv2d(1, 3, 1, 1)
+        self.output_layer = nn.Sequential(
+                nn.LazyConv2d(64, 3, 1, 1),
+                nn.LeakyReLU(0.1),
+                nn.LazyConv2d(1, 3, 1, 1),
+                )
 
     def forward(self, x):
         x = self.downsamples(x)
