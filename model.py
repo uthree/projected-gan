@@ -8,7 +8,7 @@ from torch.nn.utils import spectral_norm
 class GLU(nn.Module):
     def __init__(self, input_channels, output_channels):
         super().__init__()
-        self.conv = nn.Conv2d(input_channels, output_channels * 2, 1, 1, 0)
+        self.conv = spectral_norm(nn.Conv2d(input_channels, output_channels * 2, 1, 1, 0))
         self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):
