@@ -36,6 +36,16 @@ class SkipLayerExcitation(nn.Module):
         return hr
 
 
+class NoiseInjection(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.gain = nn.Parameter(torch.zeros(1))
+
+    def forward(self, x):
+        x = x + self.gain * torch.randn(x.shape, device=x.device)
+        return x
+
+
 class Upsample(nn.Module):
     def __init__(self, input_channels, output_channels):
         super().__init__()
@@ -53,16 +63,18 @@ class ConvBlock(nn.Module):
         super().__init__()
         if num_layers == 1:
             self.seq = nn.Sequential(
-                    spectral_norm(nn.Conv2d(input_channels, output_channels, 3, 1, 1)),
+                    NoiseInjection(),
+                    spectral_norm(nn.Conv2d(input_channels, output_channels, 3, 1, 1, bias=False)),
                     nn.LeakyReLU(0.1))
         else:
             self.seq = nn.Sequential()
             for _ in range(num_layers):
+                self.seq.append(NoiseInjection())
                 self.seq.append(
-                        spectral_norm(nn.Conv2d(input_channels, input_channels, 3, 1, 1)))
+                        spectral_norm(nn.Conv2d(input_channels, input_channels, 3, 1, 1, bias=False)))
                 self.seq.append(nn.LeakyReLU(0.1))
             self.seq.append(
-                    spectral_norm(nn.Conv2d(input_channels, output_channels, 3, 1, 1,)))
+                    spectral_norm(nn.Conv2d(input_channels, output_channels, 3, 1, 1, bias=False)))
         if upsample:
             self.seq.append(Upsample(output_channels, output_channels))
 
@@ -124,7 +136,7 @@ class Generator(nn.Module):
         self.sle_map = sle_map
         self.grayscale_output_layer_id = grayscale_output_layer
         self.grayscale_output_layer = nn.Sequential(
-                spectral_norm(nn.Conv2d(channels[self.grayscale_output_layer_id+1], 1, 3, 1, 1)),
+                spectral_norm(nn.Conv2d(channels[self.grayscale_output_layer_id+1], 1, 3, 1, 1, bias=False)),
                 nn.Tanh()
                 )
 
@@ -215,18 +227,21 @@ class LowResolutionDiscriminator(nn.Module):
     def __init__(self):
         super().__init__()
         self.seq = nn.Sequential(
-                ConvBlock(1, 64),
+                spectral_norm(nn.Conv2d(1, 64, 3, 1, 1)),
+                nn.LeakyReLU(0.1),
                 spectral_norm(nn.Conv2d(64, 64, 4, 2, 0)),
                 nn.LeakyReLU(0.1),
-                ConvBlock(64, 64),
+                spectral_norm(nn.Conv2d(64, 64, 3, 1, 1)),
+                nn.LeakyReLU(0.1),
                 spectral_norm(nn.Conv2d(64, 64, 4, 2, 0)),
                 nn.LeakyReLU(0.1),
-                ConvBlock(64, 64),
+                spectral_norm(nn.Conv2d(64, 64, 3, 1, 1)),
+                nn.LeakyReLU(0.1),
                 spectral_norm(nn.Conv2d(64, 64, 4, 2, 0)),
                 nn.LeakyReLU(0.1),
-                ConvBlock(64, 64),
-                spectral_norm(nn.Conv2d(64, 64, 4, 2, 0)),
+                spectral_norm(nn.Conv2d(64, 64, 3, 1, 1)),
                 nn.LeakyReLU(0.1),
+                spectral_norm(nn.Conv2d(64, 64, 4, 2, 0)),
                 )
 
     def forward(self, x):
