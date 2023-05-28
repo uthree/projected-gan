@@ -59,7 +59,7 @@ for epoch in range(args.num_epoch):
             fake, fake_grayscale = G(z)
             logit, logit_gs = D(fake, fake_grayscale)
             g_loss_color, g_loss_gs = (F.relu(0.5 - logit)).mean(), (F.relu(0.5 - logit_gs)).mean()
-            g_loss = g_loss_color + g_loss_gs
+            g_loss = g_loss_color# + g_loss_gs
         scaler.scale(g_loss).backward()
         scaler.step(OptG)
         
@@ -75,7 +75,7 @@ for epoch in range(args.num_epoch):
                     (F.relu(0.5 + logit_fake)).mean()
             d_loss_gs = (F.relu(0.5 - logit_real_gs)).mean() +\
                     (F.relu(0.5 + logit_fake_gs)).mean()
-            d_loss = d_loss_color + d_loss_gs
+            d_loss = d_loss_color# + d_loss_gs
         scaler.scale(d_loss).backward()
         scaler.step(OptD)
         tqdm.write(f"G: (Color: {g_loss_color.item():.4f}, GS: {g_loss_gs.item():.4f}), D: (Color: {d_loss_color.item():.4f}, GS: {d_loss_gs.item():.4f})")
